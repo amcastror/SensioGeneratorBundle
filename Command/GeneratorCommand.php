@@ -13,8 +13,8 @@ namespace Sensio\Bundle\GeneratorBundle\Command;
 
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Sensio\Bundle\GeneratorBundle\Command\Helper\DialogHelper;
 use Sensio\Bundle\GeneratorBundle\Generator\Generator;
-use Sensio\Bundle\GeneratorBundle\Command\Helper\QuestionHelper;
 
 /**
  * Base class for generator commands.
@@ -31,7 +31,7 @@ abstract class GeneratorCommand extends ContainerAwareCommand
         $this->generator = $generator;
     }
 
-    abstract protected function createGenerator();
+    protected abstract function createGenerator();
 
     protected function getGenerator(BundleInterface $bundle = null)
     {
@@ -55,33 +55,35 @@ abstract class GeneratorCommand extends ContainerAwareCommand
             $skeletonDirs[] = $dir;
         }
 
-        $skeletonDirs[] = __DIR__.'/../Resources/skeleton';
+
+        $bundleDirs = $this->getContainer()->get('kernel')
+            ->locateResource('@SensioGeneratorBundle/Resources/skeleton', null, false);
+        $sensioGeneratorSkeletonPath=dirname(__DIR__).'/Resources/skeleton';
+        
+        /*
+         * Assert: $bundleDirs is an array that contains $sensioGeneratorSkeletonPath and maybe some more
+         * Since $skeletonDirs is a prioritized list we want to exclude $sensioGeneratorSkeletonPath from $bundleDirs
+         * now and make sure it is added at the end of the list.
+         */
+        foreach ($bundleDirs as $dir) {
+            if ($dir != $sensioGeneratorSkeletonPath) {
+                $skeletonDirs[] = $dir;
+            }
+        }
+
+        $skeletonDirs[] = $sensioGeneratorSkeletonPath;
         $skeletonDirs[] = __DIR__.'/../Resources';
 
         return $skeletonDirs;
     }
 
-    protected function getQuestionHelper()
+    protected function getDialogHelper()
     {
-        $question = $this->getHelperSet()->get('question');
-        if (!$question || get_class($question) !== 'Sensio\Bundle\GeneratorBundle\Command\Helper\QuestionHelper') {
-            $this->getHelperSet()->set($question = new QuestionHelper());
+        $dialog = $this->getHelperSet()->get('dialog');
+        if (!$dialog || get_class($dialog) !== 'Sensio\Bundle\GeneratorBundle\Command\Helper\DialogHelper') {
+            $this->getHelperSet()->set($dialog = new DialogHelper());
         }
 
-        return $question;
-    }
-
-    /**
-     * Tries to make a path relative to the project, which prints nicer.
-     *
-     * @param string $absolutePath
-     *
-     * @return string
-     */
-    protected function makePathRelative($absolutePath)
-    {
-        $projectRootDir = dirname($this->getContainer()->getParameter('kernel.root_dir'));
-
-        return str_replace($projectRootDir.'/', '', realpath($absolutePath) ?: $absolutePath);
+        return $dialog;
     }
 }
